@@ -12,29 +12,29 @@ int const depth = 1000;
 bool nl = false;
 int total = 1;
 
-class base
+class Base
 {
-  const int id;
-  const int max;
-  int i;
+  int const id;
+  int const max;
+  int m_index;
  public:
-  base(int max, int id): id(id), max(max), i(0) {}
+  Base(int max, int id): id(id), max(max), m_index(0) {}
 
-  bool is_ready() const
+  bool done() const
   {
 #ifdef DEBUG
-    std::cout << id << (i != max ? " ready" : " not ready") << std::endl;
+    std::cout << id << (m_index != max ? " ready" : " not ready") << std::endl;
 #endif
-    return i >= max;
+    return m_index >= max;
   }
 
-  void notify()
+  void use()
   {
 #ifdef DEBUG
-    std::cout << id << " notify " << i << std::endl;
-    assert(i < max);
+    std::cout << id << " notify " << m_index << std::endl;
+    assert(m_index < max);
 #endif
-    ++i;
+    ++m_index;
 #ifndef DEBUG
     std::cout << id;
 #endif
@@ -44,10 +44,10 @@ class base
   void repeat()
   {
 #ifdef DEBUG
-    std::cout << id << " repeat " << i << std::endl;
-    assert(i == max);
+    std::cout << id << " repeat " << m_index << std::endl;
+    assert(m_index == max);
 #endif
-    i = 0;
+    m_index = 0;
     if(nl)
     {
       nl = false;
@@ -61,11 +61,10 @@ class base
 
 int main()
 {
-  std::vector<base> all;
-  for(int i = 0; i < n; ++i)
-    all.push_back(base(m, i));
-  iterate<base>(std::ref(all), depth, unique);
+  std::vector<Base> all;
+  for (int i = 0; i < n; ++i)
+    all.emplace_back(m, i);
+  iterate<Base>(std::ref(all), depth, unique);
   std::cout << std::endl << "total: " << total << std::endl;
-  return  0;
 }
 

@@ -51,6 +51,5 @@ int main()
   shuffle(&t, 3);
   std::vector<std::function<void()>> v = {r, s, t};
   unique_shuffle(v);
-  return 0;
 }
 

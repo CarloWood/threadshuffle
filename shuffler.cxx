@@ -2,91 +2,90 @@
 #include "shuffler.h"
 
 thread_local Shuffler* local = nullptr;
-std::mutex Shuffler::mutex;
+std::mutex Shuffler::m_th_mutex;
 
 void Shuffler::start()
 {
-  ready_lk = std::unique_lock<std::mutex>(ready_mutex);
-  th = std::thread(&Shuffler::run, this);
-  ready_cv.wait(ready_lk, [this]{return running;});
+  m_mn_lock = std::unique_lock<std::mutex>(m_mn_mutex);
+  m_thread = std::thread(&Shuffler::run, this);
+  m_mn_convar.wait(m_mn_lock, [this]{return m_running;});
 }
 
 void Shuffler::run() //the thread target
 {
-  lk = std::unique_lock<std::mutex>(mutex);
+  m_th_lock = std::unique_lock<std::mutex>(m_th_mutex);
   local = this;
-
   do
   {
     {
-      std::lock_guard<std::mutex> lg(ready_mutex);
-      running = true;
-      ready = false;
-      con = false;
+      std::lock_guard<std::mutex> lg(m_mn_mutex);
+      m_running = true;
+      m_done = false;
+      m_con = false;
     }
-    ready_cv.notify_one();
-    task();
-    ready = true;
-    cv.wait(lk, [this]{return !ready;});
+    m_mn_convar.notify_one();
+    m_task();
+    m_done = true;
+    m_th_convar.wait(m_th_lock, [this]{return !m_done;});
   }
-  while(running);
-  lk.unlock();
+  while (m_running);
+  m_th_lock.unlock();
 }
 
 void Shuffler::stop()
 {
   {
-    std::lock_guard<std::mutex> lg(mutex);
-    assert(running);
-    assert(ready);
-    assert(!con);
-    running = false;
-    ready = false;
+    std::lock_guard<std::mutex> lg(m_th_mutex);
+    assert(m_running);
+    assert(m_done);
+    assert(!m_con);
+    m_running = false;
+    m_done = false;
   }
-  cv.notify_one();
-  th.join();
+  m_th_convar.notify_one();
+  m_thread.join();
 }
 
 void Shuffler::repeat()
 {
   {
-    std::lock_guard<std::mutex> lg(mutex);
-    assert(running);
-    assert(ready);
-    assert(!con);
-    ready = false;
-    con = true;
+    std::lock_guard<std::mutex> lg(m_th_mutex);
+    assert(m_running);
+    assert(m_done);
+    assert(!m_con);
+    m_done = false;
+    m_con = true;
   }
-  cv.notify_one();
-  ready_cv.wait(ready_lk, [this]{return !con;});
+  m_th_convar.notify_one();
+  m_mn_convar.wait(m_mn_lock, [this]{return !m_con;});
 }
 
 void Shuffler::wait() //called in thread only, in task through DEBUG_SHUFFLE
 {
-  cv.wait(lk, [this]{return con;});
+  m_th_convar.wait(m_th_lock, [this]{return m_con;});
   {
-    std::lock_guard<std::mutex> lg(ready_mutex);
-    con = false;
+    std::lock_guard<std::mutex> lg(m_mn_mutex);
+    m_con = false;
   }
-  ready_cv.notify_one();
+  m_mn_convar.notify_one();
 }
 
-void Shuffler::notify()
+void Shuffler::use()
 {
   {
-    std::lock_guard<std::mutex> lg(mutex);
-    assert(running);
-    assert(!ready);
-    assert(!con);
-    con = true;
+    std::lock_guard<std::mutex> lg(m_th_mutex);
+    assert(m_running);
+    assert(!m_done);
+    assert(!m_con);
+    m_con = true;
   }
-  cv.notify_one();
-  ready_cv.wait(ready_lk, [this]{return !con;});
+  m_th_convar.notify_one();
+  m_mn_convar.wait(m_mn_lock, [this]{return !m_con;});
 }
 
-bool Shuffler::is_ready()
+bool Shuffler::done()
 {
-  std::lock_guard<std::mutex> lg(mutex);
-  return ready;
+  std::lock_guard<std::mutex> lg(m_th_mutex);
+  return m_done;
 }
 
