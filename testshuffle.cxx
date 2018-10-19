@@ -1,5 +1,6 @@
 #include <iostream>
 #include <functional>
+#include <atomic>
 #include "threadshuffle.h"
 
 void t()
@@ -12,7 +13,7 @@ void t()
   }
 }
 
-bool b = false;
+std::atomic_bool b = false;
 void s()
 {
   std::cout << "srun start from " << local << std::endl;
@@ -20,7 +21,7 @@ void s()
   {
     DEBUG_SHUFFLE
     std::cout << "srun " << i << " from " << local << std::endl;
-    b = true; //calm down, the threads will be locked all the time
+    b = true;
   }
 }
 void r()
